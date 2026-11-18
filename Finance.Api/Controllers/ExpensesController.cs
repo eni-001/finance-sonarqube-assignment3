@@ -2,12 +2,13 @@ using Finance.Api.Models;
 using Finance.Api.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json.Serialization;
 
 namespace Finance.Api.Controllers;
 
 public record CreateExpenseRequest(
     string? DepartmentCode,
-    decimal Amount,
+    [property: JsonRequired] decimal Amount,
     string? Description);
 
 [ApiController]
