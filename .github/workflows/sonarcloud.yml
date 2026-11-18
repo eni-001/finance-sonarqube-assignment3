@@ -1,0 +1,66 @@
+name: SonarQube CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build-and-analyze:
+    name: Build, test, and analyze
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install and build frontend
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          if (Test-Path package-lock.json) {
+            npm ci
+          } else {
+            npm install
+          }
+          npm run build
+
+      - name: Restore .NET dependencies
+        run: dotnet restore Finance.sln
+
+      - name: Install SonarScanner
+        run: dotnet tool install --global dotnet-sonarscanner
+
+      - name: Begin SonarQube analysis
+        shell: pwsh
+        run: dotnet sonarscanner begin /k:"eni-001_finance-sonarqube-assignment3" /o:"eni-001" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml"
+
+      - name: Build .NET solution
+        run: dotnet build Finance.sln --configuration Release --no-restore
+
+      - name: Run tests and generate coverage
+        run: dotnet test Finance.sln --configuration Release --no-build --collect:"XPlat Code Coverage;Format=opencover" --results-directory TestResults
+
+      - name: End SonarQube analysis
+        shell: pwsh
+        run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
